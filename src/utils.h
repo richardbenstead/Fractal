@@ -64,3 +64,29 @@ public:
     XYPair mCentre{};
     XYPair mScale{5, 5};
 };
+
+template<int16_t N=1000>
+class Palette
+{
+public:
+    static constexpr int16_t SIZE{N};
+    Palette()
+    {
+        auto square = [](const double x) { return x*x; };
+        for(int i=1; i<SIZE; ++i) {
+            constexpr double scale = 1.0/0.05;
+            constexpr double ps = static_cast<double>(SIZE);
+            constexpr double ps2 = ps*ps;
+            const double di = static_cast<double>(i);
+            mPalette[i] = Pixel(std::exp(-scale * square(di-ps * 0.3)/ps2),
+                          std::exp(-scale * square(di-ps * 0.6)/ps2),
+                          std::exp(-scale * square(di-ps * 0.9)/ps2));
+            // std::cout << i << " " << mPalette[i].r << "/" << mPalette[i].g << "/" << mPalette[i].b << std::endl;
+        }
+    }
+
+    Pixel& operator[] (size_t i) { return mPalette[i]; }
+
+private:
+    Pixel mPalette[SIZE];
+};

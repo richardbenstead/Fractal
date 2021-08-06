@@ -4,17 +4,16 @@
 #include <cstring>
 #include <iostream>
 #include "utils.h"
+#include <complex>
 
-
-template<typename GridCellsType, typename FrameType>
 class GlWinImage : public GlWinBase
 {
-    static constexpr uint16_t GRID_SIZE = GridCellsType::GRID_SIZE;
-    auto POS(auto x, auto y) { return GridCellsType::POS(x,y); }
-public:
-    GlWinImage(GridCellsType& gc, FrameType& f) : mGridCells(gc), mFrame(f)
-    {}
+    static constexpr uint16_t IMAGE_SIZE = 800;
+    using ImageType = Image<IMAGE_SIZE>;
+    using FrameType = Frame<ImageType>;
+    auto POS(auto x, auto y) { return ImageType::POS(x,y); }
 
+public:
     void draw()
     {
         int width, height;
@@ -37,11 +36,64 @@ public:
     }
 
 private:
+    inline double getValueM(const XYPair& loc)
+    {
+        using z_type = std::complex<double>;
+        z_type z{loc.x, loc.y};
+        z_type m{};
+        int i{0};
+        constexpr int maxIter{100};
+        for(; i<=maxIter; ++i)
+        {
+            m = m * m + z;
+            if (abs(m) > 10) {
+                [[unlikely]];
+                return i / static_cast<double>(maxIter);
+            }
+        }
+        return 0;
+    }
+
+    inline double getValueJ(const XYPair& loc)
+    {
+        using z_type = std::complex<double>;
+        z_type z{-0.5, 0.5};
+        z_type m{loc.x, loc.y};
+        int i{0};
+        constexpr int maxIter{100};
+        for(; i<=maxIter; ++i)
+        {
+            m = m * m + z;
+            if (abs(m) > 10) {
+                [[unlikely]];
+                return i / static_cast<double>(maxIter);
+            }
+        }
+        return 0;
+    }
     void drawImage(const int width, const int height)
     {
-        glPixelZoom(width/static_cast<float>(GRID_SIZE), -height/static_cast<float>(GRID_SIZE));
+        int idx = 0;
+
+        if (mType == 0) {
+            for(int y=0; y<IMAGE_SIZE; ++y) {
+                for(int x=0; x<IMAGE_SIZE; ++x) {
+                    const double val = getValueM(mFrame.imageToWorld(x,y));
+                    mImage.image[idx++] = mPalette[mPalette.SIZE * val];
+                }
+            }
+        } else {
+            for(int y=0; y<IMAGE_SIZE; ++y) {
+                for(int x=0; x<IMAGE_SIZE; ++x) {
+                    const double val = getValueJ(mFrame.imageToWorld(x,y));
+                    mImage.image[idx++] = mPalette[mPalette.SIZE * val];
+                }
+            }
+        }
+
+        glPixelZoom(width/static_cast<float>(IMAGE_SIZE), -height/static_cast<float>(IMAGE_SIZE));
         glRasterPos2i(0, height);
-        glDrawPixels(GRID_SIZE, GRID_SIZE, GL_RGB, GL_FLOAT, &mGridCells.image[0]);
+        glDrawPixels(IMAGE_SIZE, IMAGE_SIZE, GL_RGB, GL_FLOAT, &mImage.image[0]);
     }
 
     void mouseEvent(GLFWwindow *window, int button, int action, [[maybe_unused]] int mods)
@@ -55,8 +107,8 @@ private:
             int width, height;
             glfwGetWindowSize(mpWindow, &width, &height);
             if (mMouseLeftDown) {
-                const double gridX = std::max(0.0, std::min<double>(GRID_SIZE-1, GRID_SIZE * px / (double)width));
-                const double gridY = std::max(0.0, std::min<double>(GRID_SIZE-1, GRID_SIZE * py / (double)height));
+                const double gridX = std::max(0.0, std::min<double>(IMAGE_SIZE-1, IMAGE_SIZE * px / (double)width));
+                const double gridY = std::max(0.0, std::min<double>(IMAGE_SIZE-1, IMAGE_SIZE * py / (double)height));
                 const XYPair cen = mFrame.imageToWorld(gridX, gridY);
                 mFrame.mCentre = cen;
                 mFrame.mScale.x *= 0.8;
@@ -81,12 +133,14 @@ private:
         if (GLFW_PRESS == action) {
             if (key == 'Q') mQuit = true;
             if (key == 'R') mFrame.reset();
+            if (key == ' ') mType = (mType+1) % 2;
         }
     }
 
-
-    GridCellsType& mGridCells;
-    FrameType& mFrame;
+    int mType{};
+    Palette<> mPalette;
+    ImageType mImage;
+    FrameType mFrame;
 
     bool mMouseLeftDown{false};
     XYPair mLastMousePos{};

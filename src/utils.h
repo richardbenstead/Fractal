@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <array>
+#include "tuple"
 
 struct XYPair
 {
@@ -68,25 +69,44 @@ public:
 template<int16_t N=1000>
 class Palette
 {
+    static double square(const double x) { return x*x; };
+    constexpr static auto paletteFns = std::make_tuple([](const double idx) {
+                                                return Pixel(std::exp(-square(idx-0.3) * 20),
+                                                             std::exp(-square(idx-0.6) * 20),
+                                                             std::exp(-square(idx-0.9) * 20));},
+                                            [](const double idx) {
+                                                return Pixel(std::exp(-square(idx-0.8) * 10),
+                                                             std::exp(-square(idx-0.5) * 10),
+                                                             std::exp(-square(idx-0.4) * 5));});
+
 public:
     static constexpr int16_t SIZE{N};
     Palette()
     {
-        auto square = [](const double x) { return x*x; };
-        for(int i=1; i<SIZE; ++i) {
-            constexpr double scale = 1.0/0.05;
-            constexpr double ps = static_cast<double>(SIZE);
-            constexpr double ps2 = ps*ps;
-            const double di = static_cast<double>(i);
-            mPalette[i] = Pixel(std::exp(-scale * square(di-ps * 0.3)/ps2),
-                          std::exp(-scale * square(di-ps * 0.6)/ps2),
-                          std::exp(-scale * square(di-ps * 0.9)/ps2));
-            // std::cout << i << " " << mPalette[i].r << "/" << mPalette[i].g << "/" << mPalette[i].b << std::endl;
-        }
+        updatePalette();
+    };
+
+    void nextPalette()
+    {
+        mPaletteId = (mPaletteId+1) % std::tuple_size_v<decltype(paletteFns)>;
+        updatePalette();
     }
 
     Pixel& operator[] (size_t i) { return mPalette[i]; }
 
 private:
+    void updatePalette()
+    {
+        for(int i=1; i<SIZE; ++i) {
+            []<std::size_t... I> (const auto& fn, const auto& tup, std::index_sequence<I...>) {
+                (fn(std::get<I>(tup), I), ...);
+            }([&] (const auto& t, const size_t ind) {
+                if (ind==mPaletteId) mPalette[i]=t(static_cast<double>(i)/SIZE);
+                return 0;
+            }, paletteFns, std::make_index_sequence<std::tuple_size_v<decltype(paletteFns)>>());
+        }
+    }
+
+    size_t mPaletteId{};
     Pixel mPalette[SIZE];
 };

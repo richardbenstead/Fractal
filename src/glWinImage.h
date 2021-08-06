@@ -155,6 +155,7 @@ private:
             if (key == 'Q') mQuit = true;
             if (key == 'R') mFrame.reset();
             if (key == ' ') mType = (mType+1) % 2;
+            if (key == 'C') mPalette.nextPalette();
         }
     }
 

@@ -1,3 +1,6 @@
 # Mandelbrot set
-Interactive with GL window
-An excuse to try std::complex
+* Interactive with GL window
+* An excuse to try std::complex
+
+# Requires
+libglfw3-dev

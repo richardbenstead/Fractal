@@ -1,14 +1,15 @@
 #pragma once
-#include "glWinBase.h"
 #include <math.h>
 #include <cstring>
 #include <iostream>
 #include "utils.h"
+#include <GL/gl.h>
+#include <GLFW/glfw3.h>
 #include <complex>
 
-class GlWinImage : public GlWinBase
+class GlWinImage
 {
-    static constexpr uint16_t IMAGE_SIZE = 800;
+    static constexpr uint16_t IMAGE_SIZE = 1200;
     using ImageType = Image<IMAGE_SIZE>;
     using FrameType = Frame<ImageType>;
     auto POS(auto x, auto y) { return ImageType::POS(x,y); }
@@ -33,6 +34,26 @@ public:
     bool isFinished()
     {
         return mQuit || glfwWindowShouldClose(mpWindow);
+    }
+
+    void initialize(const std::string& title)
+    {
+        mpWindow = glfwCreateWindow(1200, 800, title.c_str(), nullptr, nullptr);
+        if (!mpWindow) {
+            throw std::runtime_error("glfwCreateWindow failed");
+        }
+
+        glfwMakeContextCurrent(mpWindow);
+        glfwSetWindowUserPointer(mpWindow, this);
+
+        glfwSetMouseButtonCallback(mpWindow, [](GLFWwindow *window, int button, int action, int mods) {
+                static_cast<GlWinImage*>(glfwGetWindowUserPointer(window))->mouseEvent(window, button, action, mods); });
+
+        glfwSetCursorPosCallback(mpWindow, [](GLFWwindow *window, double xpos, double ypos) {
+                static_cast<GlWinImage*>(glfwGetWindowUserPointer(window))->mouseMoveEvent(window, xpos, ypos); });
+
+        glfwSetKeyCallback(mpWindow, [](GLFWwindow* window, int key, int sc, int action, int mods) {
+                static_cast<GlWinImage*>(glfwGetWindowUserPointer(window))->keyEvent(window, key, sc, action, mods); });
     }
 
 private:
@@ -137,6 +158,7 @@ private:
         }
     }
 
+    GLFWwindow *mpWindow{};
     int mType{};
     Palette<> mPalette;
     ImageType mImage;
